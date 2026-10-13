@@ -149,6 +149,10 @@ tr.tot td{font-weight:700;background:#F8FAFB}
 .st.plan{background:var(--soft);color:var(--muted)}
 .cardnote{font-size:12.5px;color:var(--faint);margin-top:12px}
 .sm{display:none}
+.sig{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:14px 0}
+.sig .pill b{font-size:18px}
+.sig .pill small{display:block;font-size:12px;color:var(--faint)}
+@media (max-width:900px){.sig{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .foot{color:var(--faint);font-size:12.5px;margin:26px 0 40px;line-height:1.6}
 @media (max-width:900px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:1fr}.split,.split.even{grid-template-columns:1fr}}
 @media (max-width:560px){.wrap{padding:0 16px}.head h1{font-size:26px}.h1{font-size:25px}.kpi{padding:14px}.kpi .v{font-size:23px}.kpi.small .v{font-size:20px}.sec{padding:16px}
@@ -300,7 +304,7 @@ function renderChoose(){
   const d = S.data;
   document.documentElement.style.setProperty('--accent', '#1F4E51'); document.documentElement.style.setProperty('--tint', '#E4F2EF');
   $('#choose').innerHTML = topbar(null) + `<main class="wrap"><h1 class="h1">Choose a brand</h1>
-    <p class="lede">How each site is doing in Google Search. The cards show the last 28 days against the 28 days before. Updated ${esc(d.updated)}, refreshed every Monday.</p>
+    <p class="lede">How each site is doing in Google Search. The cards show the last 28 days against the 28 days before. Updated ${esc(d.updated)}, refreshed every day.</p>
     <div class="brands">${d.brands.map(b => { const p = b.periods['28'], L = b.win[p.latest], V = b.win[p.previous], s = b.periods.since, SL = b.win[s.latest], SB = b.win[s.start];
       const live = b.plan.filter(i => i.live).length; return `
       <a class="bcard" href="#${b.id}" style="--accent:${b.accent};--tint:${b.tint}">
@@ -383,6 +387,8 @@ function renderDash(){
     <div class="seg" role="group" aria-label="Measure">${[['c','Clicks'],['i','Views'],['nbc','Clicks without brand'],['nbi','Views without brand']].map(([k, l]) => `<button type="button" data-tm="${k}" aria-pressed="${S.tm === k}">${l}</button>`).join('')}</div></div>
     <div class="chartbox tall"><canvas id="chTrend" aria-label="Trend for the chosen period"></canvas></div></section>
 
+  ${b.clarity && b.clarity.length ? '<section class="sec" id="clarSec"></section>' : ''}
+
   <section class="sec"><div class="sech"><div><h2>Where does the traffic come from?</h2><p id="tgNote"></p></div>
     <div class="tog"><div class="seg" role="group" aria-label="Group by"><button type="button" data-tg="type" aria-pressed="${S.tg === 'type'}">By page type</button><button type="button" data-tg="band" aria-pressed="${S.tg === 'band'}">By position in Google</button></div>
     <div class="seg" role="group" aria-label="Measure"><button type="button" data-tmx="c" aria-pressed="${S.tmx === 'c'}">Clicks</button><button type="button" data-tmx="i" aria-pressed="${S.tmx === 'i'}">Views</button></div></div></div>
@@ -424,10 +430,10 @@ function renderDash(){
     <div class="seg" role="group" aria-label="Searches"><button type="button" data-tq="all" aria-pressed="${S.tq === 'all'}">Most clicks</button><button type="button" data-tq="nb" aria-pressed="${S.tq === 'nb'}">Without the brand name</button></div></div>
     <div class="tw" id="queriesTable"></div></section>
 
-  <p class="foot">Source: Google Search Console, final data to ${dm(b.last)} ${P(b.last).y}. Positions are Google's averages over each period. Indexed pages come from Google's URL Inspection tool and Domain Rating from Ahrefs, on the dates shown. Prepared by LocknCode. Updated ${esc(d.updated)}; the numbers refresh automatically every Monday.</p>
+  <p class="foot">Source: Google Search Console, final data to ${dm(b.last)} ${P(b.last).y}. Positions are Google's averages over each period. Indexed pages come from Google's URL Inspection tool and Domain Rating from Ahrefs, on the dates shown.${b.clarity && b.clarity.length ? ' Visitor behavior comes from Microsoft Clarity, checked once a day.' : ''} Prepared by LocknCode. Updated ${esc(d.updated)}; the numbers refresh automatically every day.</p>
   </main>`;
   show('dash');
-  renderTraffic(b); renderRank(b); renderPlan(b); renderKw(b); renderLinks(b); renderPages(b); renderQueries(b); drawCharts(b);
+  renderClarity(b); renderTraffic(b); renderRank(b); renderPlan(b); renderKw(b); renderLinks(b); renderPages(b); renderQueries(b); drawCharts(b);
 }
 
 // ---------- sections ----------
@@ -512,6 +518,68 @@ function renderLinks(b){
     </div>
     ${g.length > 1 ? '<div class="chartbox short" style="margin-top:14px"><canvas id="chLinks" aria-label="Links over time"></canvas></div>' : `<div class="cardnote">The first check was on ${last ? dm(last.date) : 'n/a'}; from the next check this shows whether the number of links is growing, with a line over time.</div>`}`;
 }
+// ---------- visitor behavior (Microsoft Clarity, one record per daily check) ----------
+const tday = iso => dayNum(iso.slice(0, 10));
+const secs = x => x == null ? 'n/a' : x < 60 ? `${Math.round(x)} sec` : `${Math.floor(x / 60)} min ${String(Math.round(x % 60)).padStart(2, '0')} sec`;
+function clarAgg(recs){
+  const o = {sessions:0, bots:0, sw:0, sn:0, aw:0, an:0, pw:0, pn:0, sig:{}, device:{}, source:{}, pages:{}};
+  for (const r of recs){
+    o.sessions += r.sessions; o.bots += r.bots;
+    if (r.scroll != null){ o.sw += r.scroll * r.sessions; o.sn += r.sessions; }
+    if (r.active != null){ o.aw += r.active * r.sessions; o.an += r.sessions; }
+    if (r.pps != null){ o.pw += r.pps * r.sessions; o.pn += r.sessions; }
+    for (const k in r.signals) o.sig[k] = (o.sig[k] || 0) + r.signals[k];
+    for (const k in r.device) o.device[k] = (o.device[k] || 0) + r.device[k];
+    for (const k in r.source) o.source[k] = (o.source[k] || 0) + r.source[k];
+    for (const [path, v, sc, ac, qb, se, dead, rage] of r.pages){
+      const g = o.pages[path] || (o.pages[path] = {path, s:0, sw:0, sn:0, aw:0, an:0, qb:0, se:0, fr:0});
+      g.s += v; if (sc != null){ g.sw += sc * v; g.sn += v; } if (ac != null){ g.aw += ac * v; g.an += v; } g.qb += qb; g.se += se; g.fr += dead + rage;
+    }
+  }
+  o.scroll = o.sn ? o.sw / o.sn : null; o.active = o.an ? o.aw / o.an : null; o.pps = o.pn ? o.pw / o.pn : null;
+  return o;
+}
+function clarWindows(b){
+  const recs = b.clarity, last = tday(recs[recs.length - 1].to), first = tday(recs[0].from);
+  const n = S.period === 'since' ? last - first : b.periods[S.period].days;
+  const cur = recs.filter(r => tday(r.to) > last - n), cmp = recs.filter(r => tday(r.to) > last - 2 * n && tday(r.to) <= last - n);
+  const full = first <= last - 2 * n && S.period !== 'since';
+  return {cur, cmp: full ? cmp : null, from: cur.length ? cur[0].from : recs[0].from, to: recs[recs.length - 1].to, first: recs[0].from};
+}
+function renderClarity(b){
+  const el = $('#clarSec'); if (!el) return;
+  const w = clarWindows(b), A = clarAgg(w.cur), C = w.cmp && w.cmp.length ? clarAgg(w.cmp) : null;
+  const sh = (n, of) => of ? Math.round(n / of * 100) + '%' : '0%';
+  const card = (label, v, was, kind, help) => { const dl = was == null ? null : kind === 'pct' ? dPts(v, was) : dCount(v, was);
+    const fmt = x => kind === 'pct' ? (x == null ? 'n/a' : Math.round(x) + '%') : kind === 'sec' ? secs(x) : kind === 'dec' ? (x == null ? 'n/a' : x.toFixed(1)) : N(x);
+    return `<div class="kpi small"><div class="k">${label}</div><div class="v">${fmt(v)}</div><div class="row">${dl ? chip(dl) + `<span class="was">was ${fmt(was)}</span>` : ''}</div><div class="help">${help}</div></div>`; };
+  const SIG = [['rage','Rage clicks','Clicked the same spot again and again'], ['dead','Dead clicks','Clicked something that did nothing'], ['quickback','Quick backs','Opened a page and went straight back'],
+    ['excessive_scroll','Lost scrolling','Scrolled up and down looking for something'], ['script_error','Page errors','A script on the page failed']];
+  const tbl = (head, obj, tot) => { const rows = Object.entries(obj).sort((x, y) => y[1] - x[1]);
+    return `<table class="rk"><thead><tr><th>${head}</th><th class="n">Visits</th><th class="n">Share</th></tr></thead><tbody>${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${N(v)}</td><td class="n">${sh(v, tot)}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">No visits yet.</td></tr>'}</tbody></table>`; };
+  const pages = Object.values(A.pages).sort((x, y) => y.s - x.s).slice(0, 15);
+  const nDays = Math.round(tday(w.to) - tday(w.from));
+  const span = rng(w.from.slice(0, 10), w.to.slice(0, 10));
+  const note = S.period === 'since' ? `Every day of Clarity data so far, ${span}.`
+    : nDays < per(b).days ? `Clarity data starts on ${dm(w.first.slice(0, 10))}, so this shows the ${nDays} days there are so far (${span}) rather than the full ${PSHORT[S.period]}.`
+    : `${span}${C ? ', against the same number of days before' : ''}.`;
+  el.innerHTML = `<div class="sech"><div><h2>What do visitors do on the site?</h2>
+    <p>From Microsoft Clarity, which records how real visitors use the pages (bots are left out). ${note} Clarity days run from about 12:45 pm to 12:45 pm, so they do not line up exactly with Google's days above.</p></div></div>
+    <div class="grid g4">
+      ${card('Visits by real people', A.sessions, C ? C.sessions : null, 'n', `Clarity also filtered out ${N(A.bots)} visits by bots.`)}
+      ${card('How far people scroll', A.scroll, C ? C.scroll : null, 'pct', 'Average share of each page a visitor scrolled through.')}
+      ${card('Active time per visit', A.active, C ? C.active : null, 'sec', 'Time spent reading, scrolling or clicking, idle time left out.')}
+      ${card('Pages per visit', A.pps, C ? C.pps : null, 'dec', 'How many pages a visitor opens before leaving.')}
+    </div>
+    <div class="sig">${SIG.map(([k, l, h]) => { const v = A.sig[k] || 0; return `<div class="pill${v ? ' bad' : ' good'}" title="${h}"><b>${N(v)}</b>${l}<small>${h}; ${sh(v, A.sessions)} of visits</small></div>`; }).join('')}</div>
+    ${b.clarity.length > 1 ? '<div class="chartbox short"><canvas id="chClarity" aria-label="Visits each day"></canvas></div>' : `<div class="cardnote" style="margin:0 0 14px">Clarity is checked once a day from ${dm(w.to.slice(0, 10))}, so a day by day chart appears here after the next check.</div>`}
+    <div class="split even" style="margin-top:14px;align-items:start"><div class="tw">${tbl('Where visitors came from', A.source, A.sessions)}</div><div class="tw">${tbl('Device', A.device, A.sessions)}</div></div>
+    <h3 style="font-size:15px;margin:20px 0 8px">Pages people visited most</h3>
+    <div class="tw"><table class="pt"><thead><tr><th>Page</th><th class="n">Visits</th><th class="n">${H('Scrolled', 'Scroll')}</th><th class="n hp">Active time</th><th class="n">${H('Problems', 'Issues')}</th></tr></thead><tbody>${pages.map(g => {
+      const pr = [g.qb ? `${g.qb} quick back${g.qb > 1 ? 's' : ''}` : '', g.se ? `${g.se} page error${g.se > 1 ? 's' : ''}` : '', g.fr ? `${g.fr} rage or dead click${g.fr > 1 ? 's' : ''}` : ''].filter(Boolean).join(', ');
+      return `<tr><td class="url"><a href="https://${esc(b.domain)}${esc(g.path)}" target="_blank" rel="noopener">${esc(dec(g.path))}</a></td><td class="n">${N(g.s)}</td><td class="n">${g.sn ? Math.round(g.sw / g.sn) + '%' : 'n/a'}</td><td class="n hp">${secs(g.an ? g.aw / g.an : null)}</td><td class="n">${pr ? `<span class="chip bad" style="white-space:normal">${pr}</span>` : '<span class="muted">none</span>'}</td></tr>`; }).join('') || '<tr><td colspan="5" class="muted">No visits yet.</td></tr>'}</tbody></table></div>
+    <div class="cardnote">A visit counts on every page it opened, so one visit can count on more than one page. Links carrying Google's tracking code are counted with the page itself.</div>`;
+}
 const dec = s => { try { return decodeURIComponent(s); } catch (e) { return s; } };
 function renderPages(b){
   const p = per(b), r = role();
@@ -538,7 +606,7 @@ const markerPlugin = {id:'startMark', afterDatasetsDraw(ch, args, o){
 function drawCharts(b){
   for (const k in S.charts) { S.charts[k].destroy(); delete S.charts[k]; }
   if (!window.Chart && document.readyState !== 'complete'){ window.addEventListener('load', () => { if (S.brand === b.id) drawCharts(b); }, {once:true}); return; }
-  if (!window.Chart){ for (const id of ['chTrend','chTraffic','chRank','chLong','chLinks']) { const el = $('#' + id); if (el) el.parentElement.innerHTML = '<p class="muted">The chart could not load. The tables still show every number.</p>'; } return; }
+  if (!window.Chart){ for (const id of ['chTrend','chClarity','chTraffic','chRank','chLong','chLinks']) { const el = $('#' + id); if (el) el.parentElement.innerHTML = '<p class="muted">The chart could not load. The tables still show every number.</p>'; } return; }
   const accent = b.accent, cmp = '#B9C4CA', cmpDark = '#7D8B92', grid = '#E9EEF0', ink = '#13222A', p = per(b), Lr = b.win[p.latest].range, Cr = b.win[p[role()]].range;
   Chart.defaults.font.family = 'Inter, system-ui, sans-serif'; Chart.defaults.color = '#5C6C74';
   Chart.defaults.animation.duration = 350; Chart.defaults.animations.x = false;   // switching periods should feel instant, and lines grow upward, not sideways
@@ -553,6 +621,15 @@ function drawCharts(b){
       tooltip:{callbacks:{title:c => { const i = c[0].dataIndex, a = bk.buckets[i], z = cbk.buckets[i]; return `${bk.step === 1 ? dm(a[0]) : rng(a[0], a[1])}  vs  ${z ? (bk.step === 1 ? dm(z[0]) : rng(z[0], z[1])) : ''}`; },
         label:c => ` ${c.dataset.label}: ${c.raw == null ? 'n/a' : N(Math.round(c.raw))} ${unit}`}}},
       scales:{x:{grid:{display:false}, ticks:{maxRotation:0, autoSkip:true, maxTicksLimit:10}}, y:{beginAtZero:true, grid:{color:grid}, ticks:{precision:0}}}}});
+  // 1b. Clarity visits per daily check
+  if (b.clarity && b.clarity.length > 1 && $('#chClarity')){
+    const rs = clarWindows(b).cur;
+    S.charts.clarity = new Chart($('#chClarity'), {type:'bar', data:{labels:rs.map(r => r.days > 1 ? rng(r.from.slice(0, 10), r.to.slice(0, 10)) : dm(r.to.slice(0, 10))), datasets:[
+        {label:'Visits by real people', data:rs.map(r => r.sessions), backgroundColor:accent, borderRadius:6, maxBarThickness:42}]},
+      options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{title:c => { const r = rs[c[0].dataIndex]; return r.days > 1 ? `${r.days} days to ${dm(r.to.slice(0, 10))}` : `24 hours to ${dm(r.to.slice(0, 10))}, 12:45 pm`; },
+        label:c => { const r = rs[c.dataIndex]; return [` ${N(r.sessions)} visits`, ` ${r.scroll == null ? 'n/a' : Math.round(r.scroll) + '%'} scrolled on average`]; }}}},
+        scales:{x:{grid:{display:false}, ticks:{maxRotation:0, autoSkip:true, maxTicksLimit:10}}, y:{beginAtZero:true, grid:{color:grid}, ticks:{precision:0}}}}});
+  }
   // 2. traffic split
   const Lw = b.win[p.latest], Cw = b.win[p[role()]], k = S.tmx === 'c' ? 0 : 1, tl = S.tg === 'type' ? S.data.types : S.data.bands;
   S.charts.traffic = new Chart($('#chTraffic'), {type:'bar', data:{labels:tl, datasets:[
