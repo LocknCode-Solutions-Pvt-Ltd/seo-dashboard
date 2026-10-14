@@ -183,6 +183,8 @@ h3.sub{font-size:15px;margin:22px 0 10px}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
 /* month by month ranking bars (as on Maria's dashboard) */
 .mchart{position:relative}
+td.wkc{white-space:nowrap}td.wkc .wkn{display:inline-block;min-width:52px;margin-right:8px;font-weight:600}
+@media (max-width:560px){td.wkc{white-space:normal}td.wkc .wkn{display:block;min-width:0;margin:0 0 3px}#wktable th .muted{display:none}}
 .mchart svg{width:100%;height:auto;display:block;overflow:visible}
 .mchart text{font-size:12px;fill:var(--muted);font-family:inherit}
 .mchart text.val{font-weight:700;fill:var(--ink)}
@@ -318,7 +320,7 @@ const PNOW = {'7':'Last 7 days', '14':'Last 14 days', '28':'Last 28 days', '90':
 const PPHRASE = {'7':'the last 7 days', '14':'the last 14 days', '28':'the last 28 days', '90':'the last 3 months', 'since':'the weeks since we started on 1 Sep'};
 const PREV = {'7':'Previous 7 days', '14':'Previous 14 days', '28':'Previous 28 days', '90':'Previous 3 months'};
 const S = {data:null, brand:null, period:'28', cmp:'previous', rank:'all', tg:'type', tmx:'c', kwq:'', kwb:'all', kwsort:'now', kwall:false,
-  pf:'live', ps:'views', tm:'c', lm:'c', tq:'all', sm:'c', wl:'q', mb:'all', mm:'clicks', kv:'c', kn:15, charts:{}};
+  pf:'live', ps:'views', tm:'c', lm:'c', tq:'all', sm:'c', wl:'q', mb:'all', mm:'clicks', wk:'c', kv:'c', kn:15, charts:{}};
 const store = {get(k){try{return sessionStorage.getItem(k)}catch(e){return null}}, set(k,v){try{sessionStorage.setItem(k,v)}catch(e){}}, del(k){try{sessionStorage.removeItem(k)}catch(e){}}};
 const $ = (s, el=document) => el.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -548,6 +550,45 @@ function renderMonthly(b){
   });
   $('#mmlegend').innerHTML = `<span><i style="background:${mix(ac, .45)}"></i>Before we started</span><span><i style="background:${ac}"></i>Since 1 Sep</span>${k !== 'p1' ? `<span><i style="background:${mix(ac, .78)}"></i>Pace, month so far</span>` : ''}`;
 }
+// ---------- week on week (7-day blocks ending on the last day Google has published) ----------
+function renderWeekly(b){
+  const el = $('#wkchart'); if (!el || !b.weekly_all) return;
+  const Wk = b.weekly_all.slice(-12), all = b.weekly_all, k = S.wk, ac = b.accent, unit = k === 'c' ? 'clicks' : 'views';
+  const prevOf = i => all[all.length - Wk.length + i - 1];
+  const wr = w => `${dm(w.from)} to ${dm(w.to)}`;
+  const L0 = Wk[Wk.length - 1], P0 = Wk[Wk.length - 2];
+  $('#wktiles').innerHTML = tile('Clicks this week', N(L0.c), chip(dCount(L0.c, P0.c)), `last week ${N(P0.c)}`)
+    + tile('Views this week', N(L0.i), chip(dCount(L0.i, P0.i)), `last week ${N(P0.i)}`)
+    + tile('Click rate this week', (L0.i ? (L0.c / L0.i * 100).toFixed(1) : '0') + '%', '', `last week ${P0.i ? (P0.c / P0.i * 100).toFixed(1) : '0'}%`)
+    + tile('This week', `<span style="font-size:17px">${wr(L0)}</span>`, '', `vs ${wr(P0)}`);
+  const sm = el.clientWidth < 600, W = sm ? 420 : 900, Hh = sm ? 300 : 280, L = 8, R = 8, T = 26, B = 50;
+  const max = Math.max(...Wk.map(w => w[k]), 1) * 1.15, step = (W - L - R) / Wk.length, bw = Math.min(46, step * .6), h = v => (Hh - T - B) * v / max;
+  let g = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Week on week">`;
+  g += `<line x1="${L}" x2="${W - R}" y1="${Hh - B}" y2="${Hh - B}" stroke="var(--line)"/>`;
+  const si = Wk.findIndex(w => w.to >= S.data.started);
+  if (si > 0){ const x = L + step * si; g += `<line x1="${x}" x2="${x}" y1="${T - 14}" y2="${Hh - B}" stroke="#13222A" stroke-dasharray="5 4" stroke-width="1.3"/><text x="${sm ? x - 6 : x + 6}" y="${T - 4}" text-anchor="${sm ? 'end' : 'start'}" style="font-weight:600;fill:#13222A">Work started</text>`; }
+  Wk.forEach((w, i) => {
+    const cx = L + step * i + step / 2, v = w[k], pv = prevOf(i), d = pv && pv[k] ? Math.round((v / pv[k] - 1) * 100) : null;
+    g += `<path d="${svgBar(cx - bw / 2, Hh - B - h(v), bw, h(v))}" fill="${si >= 0 && i >= si ? ac : mix(ac, .45)}"/>`;
+    g += `<text class="val" x="${cx}" y="${Hh - B - h(v) - 7}" text-anchor="middle">${N(v)}</text>`;
+    if (!sm || (Wk.length - 1 - i) % 2 === 0) g += `<text x="${cx}" y="${Hh - B + 17}" text-anchor="middle">${dm(w.from)}</text>`;
+    if (d != null) g += `<text x="${cx}" y="${Hh - B + 35}" text-anchor="middle" style="font-weight:600;font-size:${sm ? 10.5 : 12}px;fill:${d > 0 ? '#11704F' : d < 0 ? '#AE2A1F' : 'var(--muted)'}">${d > 0 ? '+' : ''}${d}%</text>`;
+    g += `<rect x="${L + step * i}" y="${T}" width="${step}" height="${Hh - T - B}" fill="transparent" data-i="${i}"/>`;
+  });
+  el.innerHTML = g + '</svg><div class="tip"></div>';
+  const tip = el.querySelector('.tip');
+  el.querySelectorAll('rect[data-i]').forEach(r => {
+    const show = () => { const i = +r.dataset.i, w = Wk[i], pv = prevOf(i), sc = el.clientWidth / W, cx = (L + step * i + step / 2) * sc;
+      tip.innerHTML = `<b>${wr(w)}</b><br>${N(w.c)} clicks · ${N(w.i)} views${pv ? `<br>Week before: ${N(pv.c)} clicks · ${N(pv.i)} views` : ''}`;
+      tip.style.left = Math.min(Math.max(cx, 110), el.clientWidth - 110) + 'px'; tip.style.top = (Hh - B - h(w[k])) * sc + 'px'; tip.style.opacity = 1; };
+    r.addEventListener('mouseenter', show); r.addEventListener('click', show); r.addEventListener('mouseleave', () => tip.style.opacity = 0);
+  });
+  $('#wklegend').innerHTML = `<span><i style="background:${mix(ac, .45)}"></i>Before we started</span><span><i style="background:${ac}"></i>Since 1 Sep</span><span>Under each bar: week starting, and the change in ${unit} from the week before</span>`;
+  const rows = Wk.slice(-8).reverse().map(w => { const i = Wk.indexOf(w), pv = prevOf(i);
+    const c2 = (v, was) => `<span class="wkn">${N(v)}</span>${was != null ? chip(dCount(v, was)) : ''}`;
+    return `<tr><td>${wr(w)}</td><td class="n wkc">${c2(w.c, pv ? pv.c : null)}</td><td class="n wkc">${c2(w.i, pv ? pv.i : null)}</td></tr>`; }).join('');
+  $('#wktable').innerHTML = `<table class="pt"><thead><tr><th>Week</th><th class="n">Clicks <span class="muted" style="font-weight:400">vs week before</span></th><th class="n">Views <span class="muted" style="font-weight:400">vs week before</span></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
 function renderMonths(b){
   const el = $('#mchart'); if (!el || !b.months) return;
   const M = b.months, key = S.mb === 'all' ? 'bands' : 'bands_nb', col = bandColors(b), BL = S.data.bands;
@@ -646,7 +687,7 @@ function renderDash(){
   const ps = planStats(b);
   $('#dash').innerHTML = topbar(b.id) + `<main class="wrap">
   <div class="head"><div><h1>${esc(b.name)}</h1><div class="sub"><a href="https://${esc(b.domain)}/" target="_blank" rel="noopener">${esc(b.domain)}</a> · ${nowName()}: ${rng(...L.range)}</div></div></div>
-  <nav class="jump" aria-label="Jump to">${[['s-since','Since our call', 1], ['s-over','Overview'], ['s-month','Month by month'], ['s-rank','Rankings'], ['s-kx','Keywords'], ['s-plan','New pages'], b.clarity && b.clarity.length ? ['clarSec','Visitors'] : null, ['aiSec','AI searches'], ['linksSec','Backlinks']].filter(Boolean)
+  <nav class="jump" aria-label="Jump to">${[['s-since','Since our call', 1], ['s-over','Overview'], ['s-week','Week on week'], ['s-month','Month by month'], ['s-rank','Rankings'], ['s-kx','Keywords'], ['s-plan','New pages'], b.clarity && b.clarity.length ? ['clarSec','Visitors'] : null, ['aiSec','AI searches'], ['linksSec','Backlinks']].filter(Boolean)
     .map(([id, l, hot]) => `<button type="button" data-act="jump" data-to="${id}"${hot ? ' class="hot"' : ''}>${l}</button>`).join('')}</nav>
   ${sinceHtml(b)}
   <div class="controls" id="s-over" style="margin-top:18px">
@@ -685,6 +726,12 @@ function renderDash(){
     <p>Searches that showed the site at least ${p.min_views} times in the period, grouped by their average position. Page one of Google is positions 1 to 10, page two is 11 to 20.</p></div>
     <div class="seg" role="group" aria-label="Searches"><button type="button" data-rank="all" aria-pressed="${S.rank === 'all'}">All searches</button><button type="button" data-rank="nb" aria-pressed="${S.rank === 'nb'}">Without the brand name</button></div></div>
     <div class="split"><div class="chartbox"><canvas id="chRank" aria-label="Searches by position"></canvas></div><div class="tw" id="rankTable"></div></div></section>
+
+  <section class="sec" id="s-week"><div class="sech"><div><h2>Week on week</h2><p>Clicks and views in Google for each of the last 12 weeks (7 days each, ending ${dm(b.last)}), and the change from the week before.</p></div>
+    <div class="seg" role="group" aria-label="Measure">${[['c','Clicks'],['i','Views']].map(([k, l]) => `<button type="button" data-wk="${k}" aria-pressed="${S.wk === k}">${l}</button>`).join('')}</div></div>
+    <div class="tiles t4" id="wktiles" style="margin-bottom:14px"></div>
+    <div class="mchart" id="wkchart"></div><div class="legend2" id="wklegend"></div>
+    <div class="tw" style="margin-top:16px" id="wktable"></div></section>
 
   <section class="sec" id="s-month"><div class="sech"><div><h2>Month by month</h2><p>* month so far · light bar = pace for the full month</p></div>
     <div class="seg" role="group" aria-label="Measure">${[['clicks','Clicks'],['views','Views'],['p1','Page-one searches']].map(([k, l]) => `<button type="button" data-mm="${k}" aria-pressed="${S.mm === k}">${l}</button>`).join('')}</div></div>
@@ -736,7 +783,7 @@ function renderDash(){
   <p class="foot">Source: Google Search Console, final data to ${dm(b.last)} ${P(b.last).y}${b.since ? `; the "Since our call" part uses Google's newest data to ${dm(b.since.to)}` : ''}. Positions are Google's averages over each period. Indexed pages come from Google's URL Inspection tool and Domain Rating from Ahrefs, on the dates shown.${b.clarity && b.clarity.length ? ' Visitor behavior comes from Microsoft Clarity, checked once a day.' : ''} Prepared by LocknCode. Updated ${esc(d.updated)}; the numbers refresh automatically every day.</p>
   </main>`;
   show('dash');
-  renderClarity(b); renderAI(b); renderTraffic(b); renderRank(b); renderMonthly(b); renderMonths(b); renderKwx(b); renderPlan(b); renderKw(b); renderLinks(b); renderPages(b); renderQueries(b); drawCharts(b);
+  renderClarity(b); renderAI(b); renderTraffic(b); renderRank(b); renderWeekly(b); renderMonthly(b); renderMonths(b); renderKwx(b); renderPlan(b); renderKw(b); renderLinks(b); renderPages(b); renderQueries(b); drawCharts(b);
 }
 
 // ---------- sections ----------
@@ -1051,7 +1098,7 @@ async function unlock(pw, silent){
 }
 $('#lockform').addEventListener('submit', e => { e.preventDefault(); const pw = $('#pw').value; if (pw.trim()) unlock(pw, false); });
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-act],[data-cmp],[data-period],[data-rank],[data-tm],[data-tmx],[data-tg],[data-lm],[data-tq],[data-sm],[data-wl],[data-mb],[data-mm],[data-kv]');
+  const t = e.target.closest('[data-act],[data-cmp],[data-period],[data-rank],[data-tm],[data-tmx],[data-tg],[data-lm],[data-tq],[data-sm],[data-wl],[data-mb],[data-mm],[data-wk],[data-kv]');
   if (!t) return;
   const b = S.data && S.data.brands.find(x => x.id === S.brand);
   if (t.dataset.act === 'lock'){ store.del('lnc_pw'); S.data = null; $('#pw').value = ''; $('#choose').innerHTML = ''; $('#dash').innerHTML = ''; history.replaceState(null, '', location.pathname); route(); return; }
@@ -1060,6 +1107,7 @@ document.addEventListener('click', e => {
   if (t.dataset.act === 'jump'){ const el = document.getElementById(t.dataset.to); if (el) el.scrollIntoView({behavior:'smooth', block:'start'}); return; }
   if (t.dataset.act === 'kxmore'){ S.kn += 25; renderKwx(b); return; }
   if (t.dataset.kv){ S.kv = t.dataset.kv; S.kn = 15; document.querySelectorAll('[data-kv]').forEach(x => x.setAttribute('aria-pressed', x === t)); renderKwx(b); return; }
+  if (t.dataset.wk){ S.wk = t.dataset.wk; document.querySelectorAll('[data-wk]').forEach(x => x.setAttribute('aria-pressed', x === t)); renderWeekly(b); return; }
   if (t.dataset.mm){ S.mm = t.dataset.mm; document.querySelectorAll('[data-mm]').forEach(x => x.setAttribute('aria-pressed', x === t)); renderMonthly(b); return; }
   if (t.dataset.mb){ S.mb = t.dataset.mb; document.querySelectorAll('[data-mb]').forEach(x => x.setAttribute('aria-pressed', x === t)); renderMonths(b); return; }
   const y = window.scrollY;
@@ -1090,7 +1138,7 @@ document.addEventListener('change', e => {
 });
 window.addEventListener('hashchange', route);
 let rsz = null, lastSm = innerWidth < 600;
-window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { const b = S.data && S.data.brands.find(x => x.id === S.brand); if (b && (innerWidth < 600) !== lastSm){ lastSm = innerWidth < 600; renderMonthly(b); renderMonths(b); } }, 200); });
+window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { const b = S.data && S.data.brands.find(x => x.id === S.brand); if (b && (innerWidth < 600) !== lastSm){ lastSm = innerWidth < 600; renderWeekly(b); renderMonthly(b); renderMonths(b); } }, 200); });
 const saved = store.get('lnc_pw');
 if (saved) unlock(saved, true); else route();
 })();
