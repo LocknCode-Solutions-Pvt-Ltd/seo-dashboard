@@ -33,11 +33,11 @@ button{font:inherit;color:inherit;cursor:pointer}
 .lbg .sk figcaption{left:20px}.lbg .jb figcaption{right:20px}
 .lockcard{position:relative;z-index:3;width:100%;max-width:440px;background:var(--card);border-radius:20px;padding:34px 30px;box-shadow:0 24px 70px rgba(0,0,0,.35)}
 .hello{font-size:15px;font-weight:600;color:var(--muted);margin:18px 0 0!important}
-.duo{display:flex;gap:6px;margin:0 0 6px}.duo i{width:26px;height:5px;border-radius:9px;display:block}
+.duo{display:flex;gap:6px;margin:0 0 22px}.duo i{width:26px;height:5px;border-radius:9px;display:block}
 @media (max-width:700px){.lbg{grid-template-columns:1fr;grid-template-rows:1fr 1fr}.lbg figcaption{bottom:12px}.lbg .sk figcaption{left:12px;bottom:auto;top:12px}.lbg .jb figcaption{right:12px}.lockcard{padding:28px 22px}}
 .mark{font-weight:700;letter-spacing:.14em;font-size:12px;color:var(--accent)}
 .mark span{letter-spacing:0;font-weight:500;color:var(--muted);margin-left:8px;font-size:13px}
-.lockcard h1{font-size:28px;line-height:1.2;margin:4px 0 8px}
+.lockcard h1{font-size:28px;line-height:1.2;margin:18px 0 10px}
 .lockcard p{margin:0 0 22px;color:var(--muted)}
 label.f{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
 .inp{width:100%;font:inherit;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#fff;outline:none}
@@ -236,10 +236,8 @@ td.pgl a{text-decoration:none}td.pgl a:hover{color:var(--accent);text-decoration
   </div>
   <form class="lockcard" id="lockform" autocomplete="on">
     <div class="mark">LOCKNCODE<span>SEO dashboard</span></div>
-    <p class="hello" id="hello">Welcome</p>
     <h1>JB Skincare and Skinolin</h1>
     <div class="duo" aria-hidden="true"><i style="background:#15968C"></i><i style="background:#99632C"></i></div>
-    <p>How both websites are doing on Google, updated every day. Enter the password to open the dashboard.</p>
     <label class="f" for="pw">Password</label>
     <input class="inp" id="pw" name="password" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false" required autofocus>
     <button class="btn full" id="unlockbtn" type="submit">Open dashboard</button>
@@ -927,7 +925,6 @@ document.addEventListener('change', e => {
 window.addEventListener('hashchange', route);
 let rsz = null, lastSm = innerWidth < 600;
 window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { const b = S.data && S.data.brands.find(x => x.id === S.brand); if (b && (innerWidth < 600) !== lastSm){ lastSm = innerWidth < 600; renderMonths(b); } }, 200); });
-const hello = document.getElementById('hello'); if (hello) hello.textContent = greet() + ',';
 const saved = store.get('lnc_pw');
 if (saved) unlock(saved, true); else route();
 })();
