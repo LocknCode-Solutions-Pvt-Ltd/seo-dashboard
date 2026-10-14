@@ -213,6 +213,16 @@ td.pgl a{text-decoration:none}td.pgl a:hover{color:var(--accent);text-decoration
 .hcard{background:var(--card);border:1px solid var(--line);border-top:5px solid var(--accent);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:16px;min-width:0}
 .hcard header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
 .hcard .bdom{margin:0}
+.hrng{display:inline-block;margin-top:8px;font-size:13px;font-weight:600;color:var(--accent);background:var(--tint);border-radius:999px;padding:3px 10px}
+.hrng span{font-weight:400;color:var(--muted)}
+.ailist{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.airow{padding:12px 16px;border-top:1px solid var(--line)}
+.airow:first-child{border-top:0}
+.aitop{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;font-size:15px}
+.aitop a{font-weight:600}
+.aiq{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+.aiq .k{font-size:12px;color:var(--faint);margin-right:4px}
+.aiq .tag{margin:0}
 .btn.sm{padding:8px 14px;font-size:14px;text-decoration:none;white-space:nowrap}
 .tiles{display:grid;gap:10px}
 .t4{grid-template-columns:repeat(4,minmax(0,1fr))}
@@ -414,11 +424,10 @@ function renderChoose(){
   document.documentElement.style.setProperty('--accent', '#1F4E51'); document.documentElement.style.setProperty('--tint', '#E4F2EF');
   const sc = d.brands[0].since;
   $('#choose').innerHTML = topbar(null) + `<main class="wrap">
-    <div class="hhead"><h1 class="h1">${greet()}, JB Skincare and Skinolin</h1><span class="upd">Updated ${esc(d.updated)}</span></div>
-    ${sc ? `<div class="kick"><span class="eyebrow">Since our call · ${dm(sc.call)}</span><span class="rngc">${rng(sc.from, sc.to)} vs ${rng(sc.pfrom, sc.pto)}</span></div>
-    <div class="homegrid">${d.brands.map(homeCard).join('')}</div>` : ''}
+    <div class="hhead"><h1 class="h1">LocknCode SEO dashboard for Skinolin and JB Skincare</h1><span class="upd">Updated ${esc(d.updated)}</span></div>
+    ${sc ? `<div class="homegrid" style="margin-top:18px">${d.brands.map(homeCard).join('')}</div>` : ''}
     <h2 class="h2c">Choose a brand</h2>
-    <p class="lede">How each site is doing in Google Search. The cards show the last 28 days against the 28 days before.</p>
+    <p class="lede">How each site is doing in Google Search over a longer stretch: the last 28 days (${rng(...d.brands[0].win[d.brands[0].periods['28'].latest].range)}) against the 28 days before (${rng(...d.brands[0].win[d.brands[0].periods['28'].previous].range)}).</p>
     <div class="brands">${d.brands.map(b => { const p = b.periods['28'], L = b.win[p.latest], V = b.win[p.previous], s = b.periods.since, SL = b.win[s.latest], SB = b.win[s.start];
       const live = b.plan.filter(i => i.live).length; return `
       <a class="bcard" href="#${b.id}" style="--accent:${b.accent};--tint:${b.tint}">
@@ -454,7 +463,7 @@ function homeCard(b){
   if (!s) return '';
   const pub = s.published, ix = s.index;
   return `<article class="hcard" style="--accent:${b.accent};--tint:${b.tint}">
-    <header><div><div class="bname">${esc(b.name)}</div><div class="bdom">${esc(b.domain)}</div></div><a class="btn sm" href="#${b.id}">Open dashboard</a></header>
+    <header><div><div class="bname">${esc(b.name)}</div><div class="bdom">${esc(b.domain)}</div><div class="hrng">${rng(s.from, s.to)} <span>vs ${rng(s.pfrom, s.pto)}</span></div></div><a class="btn sm" href="#${b.id}">Open dashboard</a></header>
     <div class="tiles t4">
       ${tile('Clicks', N(s.now.c), chip(dCount(s.now.c, s.before.c)), `was ${N(s.before.c)}`)}
       ${tile('Views', N(s.now.i), chip(dCount(s.now.i, s.before.i)), `was ${N(s.before.i)}`)}
@@ -638,7 +647,7 @@ function renderDash(){
   const ps = planStats(b);
   $('#dash').innerHTML = topbar(b.id) + `<main class="wrap">
   <div class="head"><div><h1>${esc(b.name)}</h1><div class="sub"><a href="https://${esc(b.domain)}/" target="_blank" rel="noopener">${esc(b.domain)}</a> · ${nowName()}: ${rng(...L.range)}</div></div></div>
-  <nav class="jump" aria-label="Jump to">${[['s-since','Since our call', 1], ['s-over','Overview'], ['s-month','Month by month'], ['s-rank','Rankings'], ['s-kx','Keywords'], ['s-plan','New pages'], b.clarity && b.clarity.length ? ['clarSec','Visitors'] : null, ['linksSec','Backlinks']].filter(Boolean)
+  <nav class="jump" aria-label="Jump to">${[['s-since','Since our call', 1], ['s-over','Overview'], ['s-month','Month by month'], ['s-rank','Rankings'], ['s-kx','Keywords'], ['s-plan','New pages'], b.clarity && b.clarity.length ? ['clarSec','Visitors'] : null, ['aiSec','AI searches'], ['linksSec','Backlinks']].filter(Boolean)
     .map(([id, l, hot]) => `<button type="button" data-act="jump" data-to="${id}"${hot ? ' class="hot"' : ''}>${l}</button>`).join('')}</nav>
   ${sinceHtml(b)}
   <div class="controls" id="s-over" style="margin-top:18px">
@@ -666,6 +675,7 @@ function renderDash(){
     <div class="chartbox tall"><canvas id="chTrend" aria-label="Trend for the chosen period"></canvas></div></section>
 
   ${b.clarity && b.clarity.length ? '<section class="sec" id="clarSec"></section>' : ''}
+  <section class="sec" id="aiSec"></section>
 
   <section class="sec"><div class="sech"><div><h2>Where does the traffic come from?</h2><p id="tgNote"></p></div>
     <div class="tog"><div class="seg" role="group" aria-label="Group by"><button type="button" data-tg="type" aria-pressed="${S.tg === 'type'}">By page type</button><button type="button" data-tg="band" aria-pressed="${S.tg === 'band'}">By position in Google</button></div>
@@ -727,7 +737,7 @@ function renderDash(){
   <p class="foot">Source: Google Search Console, final data to ${dm(b.last)} ${P(b.last).y}${b.since ? `; the "Since our call" part uses Google's newest data to ${dm(b.since.to)}` : ''}. Positions are Google's averages over each period. Indexed pages come from Google's URL Inspection tool and Domain Rating from Ahrefs, on the dates shown.${b.clarity && b.clarity.length ? ' Visitor behavior comes from Microsoft Clarity, checked once a day.' : ''} Prepared by LocknCode. Updated ${esc(d.updated)}; the numbers refresh automatically every day.</p>
   </main>`;
   show('dash');
-  renderClarity(b); renderTraffic(b); renderRank(b); renderMonthly(b); renderMonths(b); renderKwx(b); renderPlan(b); renderKw(b); renderLinks(b); renderPages(b); renderQueries(b); drawCharts(b);
+  renderClarity(b); renderAI(b); renderTraffic(b); renderRank(b); renderMonthly(b); renderMonths(b); renderKwx(b); renderPlan(b); renderKw(b); renderLinks(b); renderPages(b); renderQueries(b); drawCharts(b);
 }
 
 // ---------- sections ----------
@@ -873,6 +883,33 @@ function renderClarity(b){
       const pr = [g.qb ? `${g.qb} quick back${g.qb > 1 ? 's' : ''}` : '', g.se ? `${g.se} page error${g.se > 1 ? 's' : ''}` : '', g.fr ? `${g.fr} rage or dead click${g.fr > 1 ? 's' : ''}` : ''].filter(Boolean).join(', ');
       return `<tr><td class="url"><a href="https://${esc(b.domain)}${esc(g.path)}" target="_blank" rel="noopener">${esc(dec(g.path))}</a></td><td class="n">${N(g.s)}</td><td class="n">${g.sn ? Math.round(g.sw / g.sn) + '%' : 'n/a'}</td><td class="n hp">${secs(g.an ? g.aw / g.an : null)}</td><td class="n">${pr ? `<span class="chip bad" style="white-space:normal">${pr}</span>` : '<span class="muted">none</span>'}</td></tr>`; }).join('') || '<tr><td colspan="5" class="muted">No visits yet.</td></tr>'}</tbody></table></div>
     <div class="cardnote">A visit counts on every page it opened, so one visit can count on more than one page. Links carrying Google's tracking code are counted with the page itself.</div>`;
+}
+// ---------- AI searches (ChatGPT, Claude, Perplexity...: tool + landing page from Clarity; likely questions from the page's Google searches) ----------
+const AI_NAMES = ['ChatGPT', 'Claude', 'Perplexity', 'Gemini', 'Copilot', 'DeepSeek', 'Meta AI', 'Grok', 'You.com', 'Phind', 'Mistral'];
+function renderAI(b){
+  const el = $('#aiSec'); if (!el) return;
+  const head = `<div class="sech"><div><h2>Do AI tools like ChatGPT send people to the site?</h2>
+    <p>ChatGPT, Claude, Perplexity, Gemini and Copilot do not tell a website what the person typed, so nobody can see the exact question. What we can see is which AI tool sent the visit and the page it landed on. Next to each page are the Google searches that page shows up for, the closest guide to what people were asking.</p></div></div>`;
+  if (!b.clarity || !b.clarity.length){
+    el.innerHTML = head + `<div class="cardnote">Visits from AI tools are read from Microsoft Clarity, which is not on ${esc(b.name)} yet. Google Search Console does not separate them, so this part fills in once Clarity is added.</div>`;
+    return;
+  }
+  const w = clarWindows(b), span = rng(w.from.slice(0, 10), w.to.slice(0, 10));
+  const agg = recs => { const t = {}, p = {}; let n = 0; for (const r of recs) for (const [tool, path, v] of (r.ai || [])) { n += v; t[tool] = (t[tool] || 0) + v; const k = tool + '|' + path; p[k] = (p[k] || 0) + v; } return {n, t, p}; };
+  const A = agg(w.cur), C = w.cmp && w.cmp.length ? agg(w.cmp) : null, all = w.cur.reduce((x, r) => x + r.sessions, 0);
+  const rows = Object.entries(A.p).sort((x, y) => y[1] - x[1]);
+  const qs = path => ((b.ai_q || {})[path] || []);
+  const card = (label, v, help, was) => `<div class="kpi small"><div class="k">${label}</div><div class="v">${v}</div><div class="row">${was != null ? chip(dCount(A.n, was)) + `<span class="was">was ${N(was)}</span>` : ''}</div><div class="help">${help}</div></div>`;
+  el.innerHTML = head + `<div class="grid g3">
+      ${card('Visits from AI tools', N(A.n), `Real visitors who came from an AI answer, ${span}.`, C ? C.n : null)}
+      ${card('Share of all visits', all ? (A.n / all * 100 < 1 && A.n ? '<1%' : Math.round(A.n / all * 100) + '%') : '0%', `Out of ${N(all)} visits by real people in the same days.`)}
+      ${card('AI tools seen', Object.keys(A.t).length ? Object.entries(A.t).sort((x, y) => y[1] - x[1]).map(([k, v]) => `${esc(k)} <small>${v}</small>`).join(', ') : 'None yet', `We watch for ${AI_NAMES.slice(0, 5).join(', ')} and other AI tools.`)}
+    </div>
+    <h3 style="font-size:15px;margin:20px 0 8px">Where AI visitors landed, and the questions that page answers</h3>
+    <div class="ailist">${rows.map(([k, v]) => { const [tool, path] = k.split('|'), q = qs(path);
+      return `<div class="airow"><div class="aitop"><b>${esc(tool)}</b><span class="muted">sent</span><b>${N(v)} visit${v === 1 ? '' : 's'}</b><span class="muted">to</span><a href="https://${esc(b.domain)}${esc(path)}" target="_blank" rel="noopener">${esc(pageName(path))}</a></div>
+        <div class="aiq"><span class="k">Likely questions</span>${q.length ? q.slice(0, 4).map(x => `<span class="tag" title="${N(x[2])} views in Google, position ${x[3]}">${esc(x[0])}</span>`).join('') : '<span class="muted">No Google searches for this page yet</span>'}</div></div>`; }).join('') || '<div class="airow muted">No visits from AI tools in these days yet.</div>'}</div>
+    <div class="cardnote">AI visits are read from Microsoft Clarity once a day (it spots the tag ChatGPT adds to its links and the address of the AI site). The searches next to each page come from Google Search Console for the last 3 months; they show what the page answers, not the words typed into the AI tool.</div>`;
 }
 const dec = s => { try { return decodeURIComponent(s); } catch (e) { return s; } };
 function renderPages(b){
