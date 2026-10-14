@@ -509,8 +509,7 @@ function sinceHtml(b){
       ${cl ? `<div class="panel"><h3>How visitors arrived <span class="hs">Clarity, ${dm(cl.from)} to ${dm(cl.to)}</span></h3><div class="chartbox donut"><canvas id="chSrc" aria-label="Visitor sources"></canvas></div></div>` : ''}
       <div class="panel"><h3>Articles going live</h3><div class="chartbox donut"><canvas id="chArt" aria-label="Articles live and scheduled per day"></canvas></div></div>
     </div>
-    <div class="g2" style="margin-top:16px">
-      <div class="panel"><h3>What we did</h3><ul class="tl">${(s.work || []).map(x => `<li><span class="d">${dm(x.d)}</span><b>${esc(x.t)}</b>${x.s ? `<small>${esc(x.s)}</small>` : ''}</li>`).join('')}</ul></div>
+    <div style="margin-top:16px">
       <div class="panel"><h3>New articles <span class="hs">${pub.live.length} live · ${pub.next.length} scheduled</span></h3><ul class="pub">${pub.live.map(x => `<li><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a><span class="d">${dm(x.date.slice(0, 10))}</span></li>`).join('') || '<li class="muted">None yet</li>'}</ul>
         ${pub.next.length ? `<details class="nx"><summary>Scheduled (${pub.next.length})</summary><ul class="pub">${pub.next.map(x => `<li>${esc(x.title)}<span class="d">${dm(x.date.slice(0, 10))}</span></li>`).join('')}</ul></details>` : ''}</div>
     </div>
