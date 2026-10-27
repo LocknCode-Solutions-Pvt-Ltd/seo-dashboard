@@ -262,6 +262,11 @@ td.pgl a{text-decoration:none}td.pgl a:hover{color:var(--accent);text-decoration
 .g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 .bs-t2{grid-template-columns:repeat(2,minmax(0,1fr))}
 .bs-dot{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none;align-self:center}
+.ashare{margin-top:16px}.ashare .k{font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px}
+.sbar{display:flex;gap:2px;height:14px;border-radius:4px;overflow:hidden}.sbar i{display:block;height:100%;min-width:3px}
+.slg{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:8px;font-size:13px}.slg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.slg small{color:var(--faint);margin-left:4px;font-variant-numeric:tabular-nums}
+td.pn .bs-dot{display:inline-block;margin-right:6px;vertical-align:0}
 .chartbox.donut{height:220px}
 .tl{list-style:none;margin:0;padding:0 0 0 14px;border-left:2px solid var(--line)}
 .tl li{position:relative;padding:0 0 12px 14px}
@@ -322,7 +327,7 @@ const PNOW = {'7':'Last 7 days', '14':'Last 14 days', '28':'Last 28 days', '90':
 const PPHRASE = {'7':'the last 7 days', '14':'the last 14 days', '28':'the last 28 days', '90':'the last 3 months', 'since':'the weeks since we started on 1 Sep'};
 const PREV = {'7':'Previous 7 days', '14':'Previous 14 days', '28':'Previous 28 days', '90':'Previous 3 months'};
 const S = {data:null, brand:null, period:'28', cmp:'previous', rank:'all', tg:'type', tmx:'c', kwq:'', kwb:'all', kwsort:'now', kwall:false,
-  pf:'live', ps:'views', tm:'c', lm:'c', tq:'all', sm:'c', wl:'q', mb:'all', mm:'clicks', wk:'c', kv:'c', kn:15, bm:'i', charts:{}};
+  pf:'live', ps:'views', tm:'c', lm:'c', tq:'all', sm:'c', wl:'q', mb:'all', mm:'clicks', wk:'c', kv:'c', kn:15, bm:'i', am:'i', aall:false, charts:{}};
 const store = {get(k){try{return sessionStorage.getItem(k)}catch(e){return null}}, set(k,v){try{sessionStorage.setItem(k,v)}catch(e){}}, del(k){try{sessionStorage.removeItem(k)}catch(e){}}};
 const $ = (s, el=document) => el.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -689,7 +694,7 @@ function renderDash(){
   const ps = planStats(b);
   $('#dash').innerHTML = topbar(b.id) + `<main class="wrap">
   <div class="head"><div><h1>${esc(b.name)}</h1><div class="sub"><a href="https://${esc(b.domain)}/" target="_blank" rel="noopener">${esc(b.domain)}</a> · ${nowName()}: ${rng(...L.range)}</div></div></div>
-  <nav class="jump" aria-label="Jump to">${[['s-since','Since our call', 1], ['s-over','Overview'], b.split ? ['s-split','Repêchage and VOESH'] : null, ['s-week','Week on week'], ['s-month','Month by month'], ['s-rank','Rankings'], ['s-kx','Keywords'], ['s-plan','New pages'], b.clarity && b.clarity.length ? ['clarSec','Visitors'] : null, ['aiSec','AI searches'], ['linksSec','Backlinks']].filter(Boolean)
+  <nav class="jump" aria-label="Jump to">${[['s-since','Since our call', 1], ['s-over','Overview'], b.split ? ['s-split','Repêchage and VOESH'] : null, b.split && b.split.art ? ['s-atopic','Articles'] : null, ['s-week','Week on week'], ['s-month','Month by month'], ['s-rank','Rankings'], ['s-kx','Keywords'], ['s-plan','New pages'], b.clarity && b.clarity.length ? ['clarSec','Visitors'] : null, ['aiSec','AI searches'], ['linksSec','Backlinks']].filter(Boolean)
     .map(([id, l, hot]) => `<button type="button" data-act="jump" data-to="${id}"${hot ? ' class="hot"' : ''}>${l}</button>`).join('')}</nav>
   ${sinceHtml(b)}
   <div class="controls" id="s-over" style="margin-top:18px">
@@ -722,6 +727,14 @@ function renderDash(){
     <div class="chartbox" style="margin-top:16px"><canvas id="chSplit" aria-label="Clicks or views per brand over the chosen period"></canvas></div>
     <div class="g2" style="margin-top:16px" id="splitPages"></div>
     <p class="cardnote" id="splitNote"></p></section>` : ''}
+
+  ${b.split && b.split.art ? `<section class="sec" id="s-atopic"><div class="sech"><div><h2>Articles by topic</h2><p>Google clicks and views on the blog articles, grouped by what each one is about, ${nowName().toLowerCase()} against ${cmpPhrase(b)}.</p></div>
+    <div class="seg" role="group" aria-label="Measure">${[['i','Views'],['c','Clicks']].map(([k, l]) => `<button type="button" data-am="${k}" aria-pressed="${S.am === k}">${l}</button>`).join('')}</div></div>
+    <div class="g3" id="atCards"></div>
+    <div class="ashare" id="atShare"></div>
+    <div class="chartbox" style="margin-top:16px"><canvas id="chAtopic" aria-label="Article clicks or views per topic over the chosen period"></canvas></div>
+    <div class="tw" style="margin-top:16px" id="atTable"></div><div id="atMore" style="margin-top:10px"></div>
+    <p class="cardnote" id="atNote"></p></section>` : ''}
 
   ${b.clarity && b.clarity.length ? '<section class="sec" id="clarSec"></section>' : ''}
   <section class="sec" id="aiSec"></section>
@@ -792,7 +805,7 @@ function renderDash(){
   <p class="foot">Source: Google Search Console, final data to ${dm(b.last)} ${P(b.last).y}${b.since ? `; the "Since our call" part uses Google's newest data to ${dm(b.since.to)}` : ''}. Positions are Google's averages over each period. Indexed pages come from Google's URL Inspection tool and Domain Rating from Ahrefs, on the dates shown.${b.clarity && b.clarity.length ? ' Visitor behavior comes from Microsoft Clarity, checked once a day.' : ''} Prepared by LocknCode. Updated ${esc(d.updated)}; the numbers refresh automatically every day.</p>
   </main>`;
   show('dash');
-  renderClarity(b); renderAI(b); renderSplit(b); renderTraffic(b); renderRank(b); renderWeekly(b); renderMonthly(b); renderMonths(b); renderKwx(b); renderPlan(b); renderKw(b); renderLinks(b); renderPages(b); renderQueries(b); drawCharts(b);
+  renderClarity(b); renderAI(b); renderSplit(b); renderAtopic(b); renderTraffic(b); renderRank(b); renderWeekly(b); renderMonthly(b); renderMonths(b); renderKwx(b); renderPlan(b); renderKw(b); renderLinks(b); renderPages(b); renderQueries(b); drawCharts(b);
 }
 
 // ---------- sections ----------
@@ -815,6 +828,34 @@ function renderSplit(b){
       return `<tr><td class="url"><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(dec(x.path).replace(/\/\d{12,}$/, ''))}</a></td><td class="n">${N(n[1])}</td><td class="n">${w ? chip(dCount(n[1], w[1])) : chip({t:'New', c:'good'})}</td><td class="n">${N(n[0])}</td></tr>`; }).join('') +
     '</tbody></table></div></div>').join('');
   $('#splitNote').textContent = `Product pages count for the brand on the product; articles for the brand they name most; collections for the products they list. The homepage, about, contact and pages for both brands are left out: ${N(L.o[1])} views in this period.`;
+}
+// 27 Oct 2026: the articles grouped by what they are about (jb_split.articles), for the founders' call
+function renderAtopic(b){
+  const A = b.split && b.split.art; if (!A || !$('#atCards')) return;
+  const p = per(b), r = role(), L = A.win[p.latest], C = A.win[p[r]], G = ['g', 'r', 'v'], k = S.am === 'c' ? 0 : 1, unit = S.am === 'c' ? 'clicks' : 'views';
+  const sum = (w, j) => G.reduce((s, g) => s + w[g][j], 0), pc = (x, t) => t ? Math.round(x / t * 100) : 0;
+  const tile = (lbl, now, was, ts) => `<div class="tile"><div class="k">${lbl}</div><div class="v">${N(now)}</div>${chip(dCount(now, was))}${ts ? `<div class="ts">${ts}</div>` : ''}</div>`;
+  $('#atCards').innerHTML = G.map(g => `<div class="panel"><h3><i class="bs-dot" style="background:${A.colors[g]}"></i>${A.names[g]}</h3>
+    <div class="tiles bs-t2">
+      <div class="tile"><div class="k">Articles live</div><div class="v">${N(L[g][2])}</div><div class="ts">${cmpName(b)}: ${N(C[g][2])}</div></div>
+      <div class="tile"><div class="k">Share of ${unit}</div><div class="v">${pc(L[g][k], sum(L, k))}%</div><div class="ts">Of all article ${unit}</div></div>
+      ${tile('Google views', L[g][1], C[g][1], `${cmpName(b)}: ${N(C[g][1])}`)}
+      ${tile('Google clicks', L[g][0], C[g][0], `${cmpName(b)}: ${N(C[g][0])}`)}
+    </div></div>`).join('');
+  const sw = b.split.win[p.latest], site = sw.r[k] + sw.v[k] + sw.o[k];
+  const segs = G.map(g => [A.names[g], L[g][k], A.colors[g]]).concat([['Rest of the site', Math.max(0, site - sum(L, k)), 'var(--cmp)']]);
+  $('#atShare').innerHTML = `<div class="k">Share of all the site's Google ${unit}, ${nowName().toLowerCase()}</div>
+    <div class="sbar" role="img" aria-label="${segs.map(([n, x]) => `${n} ${pc(x, site)}%`).join(', ')}">${segs.filter(s => s[1] > 0).map(([n, x, c]) => `<i style="flex:${x} 1 0;background:${c}" title="${n}: ${N(x)} ${unit} (${pc(x, site)}%)"></i>`).join('')}</div>
+    <div class="slg">${segs.map(([n, x, c]) => `<span><i style="background:${c}"></i>${n} <b>${pc(x, site)}%</b><small>${N(x)}</small></span>`).join('')}</div>`;
+  const end = b.win[p.latest].range[1];
+  const rows = A.list.filter(x => x.pub <= end).map(x => ({x, n: x.v[p.latest] || [0, 0, null], w: x.v[p[r]] || null}))
+    .sort((a, z) => z.n[1] - a.n[1] || z.n[0] - a.n[0] || (z.x.pub > a.x.pub ? 1 : z.x.pub < a.x.pub ? -1 : 0));
+  const shown = S.aall ? rows : rows.slice(0, 10);
+  $('#atTable').innerHTML = `<table class="pt"><thead><tr><th>Article</th><th class="n">Views</th><th class="n">${H('vs ' + cmpName(b).toLowerCase(), 'Change')}</th><th class="n">Clicks</th><th class="n hp">Live since</th></tr></thead><tbody>` +
+    shown.map(({x, n, w}) => `<tr><td class="pn"><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a><span class="s"><i class="bs-dot" style="background:${A.colors[x.g]}"></i>${A.names[x.g]}</span></td><td class="n">${N(n[1])}</td><td class="n">${w ? chip(dCount(n[1], w[1])) : n[1] ? chip({t:'New', c:'good'}) : ''}</td><td class="n">${N(n[0])}</td><td class="n hp">${dm(x.pub)}</td></tr>`).join('') +
+    '</tbody></table>';
+  $('#atMore').innerHTML = rows.length > 10 ? `<button class="ghost" type="button" data-act="atall">${S.aall ? 'Show fewer' : `Show all ${rows.length}`}</button>` : '';
+  $('#atNote').textContent = `Repêchage and VOESH: articles about the brand or one of its products (VOESH heel socks and peeling socks count as VOESH). General topics: skin and foot care questions such as serum timing or Epsom salt, which recommend products from either brand. The Repêchage and VOESH section above counts every article for the brand it names most, so its numbers differ. Articles count from the day they went live.`;
 }
 function renderTraffic(b){
   const p = per(b), Lw = b.win[p.latest], Cw = b.win[p[role()]], k = S.tmx === 'c' ? 0 : 1;
@@ -1023,7 +1064,7 @@ const markerPlugin = {id:'startMark', afterDatasetsDraw(ch, args, o){
 function drawCharts(b){
   for (const k in S.charts) { S.charts[k].destroy(); delete S.charts[k]; }
   if (!window.Chart && document.readyState !== 'complete'){ window.addEventListener('load', () => { if (S.brand === b.id) drawCharts(b); }, {once:true}); return; }
-  if (!window.Chart){ for (const id of ['chSince','chTypes','chSrc','chArt','chTrend','chSplit','chClarity','chTraffic','chRank','chLong','chLinks']) { const el = $('#' + id); if (el) el.parentElement.innerHTML = '<p class="muted">The chart could not load. The tables still show every number.</p>'; } return; }
+  if (!window.Chart){ for (const id of ['chSince','chTypes','chSrc','chArt','chTrend','chSplit','chAtopic','chClarity','chTraffic','chRank','chLong','chLinks']) { const el = $('#' + id); if (el) el.parentElement.innerHTML = '<p class="muted">The chart could not load. The tables still show every number.</p>'; } return; }
   const accent = b.accent, cmp = '#B9C4CA', cmpDark = '#7D8B92', grid = '#E9EEF0', ink = '#13222A', p = per(b), Lr = b.win[p.latest].range, Cr = b.win[p[role()]].range;
   Chart.defaults.font.family = 'Inter, system-ui, sans-serif'; Chart.defaults.color = '#5C6C74';
   Chart.defaults.animation.duration = 350; Chart.defaults.animations.x = false;   // switching periods should feel instant, and lines grow upward, not sideways
@@ -1048,6 +1089,18 @@ function drawCharts(b){
       options:{responsive:true, maintainAspectRatio:false, interaction:{mode:'index', intersect:false}, plugins:{legend,
         tooltip:{callbacks:{title:c => { const a = bk.buckets[c[0].dataIndex]; return bk.step === 1 ? dm(a[0]) : rng(a[0], a[1]); }, label:c => ` ${c.dataset.label}: ${c.raw == null ? 'n/a' : N(c.raw)} ${su}`}}},
         scales:{x:{grid:{display:false}, ticks:{maxRotation:0, autoSkip:true, maxTicksLimit:10}}, y:{beginAtZero:true, grid:{color:grid}, ticks:{precision:0}}}}});
+  }
+  // 0a2. JB: article clicks or views per topic, stacked, same buckets as the trend chart
+  if (b.split && b.split.art && $('#chAtopic')){
+    const A = b.split.art, m = S.am, au = m === 'c' ? 'clicks' : 'views', ix = {};
+    A.days.d.forEach((d, i) => ix[d] = i);
+    const ser = g => bk.buckets.map(([a, z]) => { const i0 = ix[a], i1 = ix[z]; if (i0 == null || i1 == null) return null; let t = 0; for (let i = i0; i <= i1; i++) t += A.days[g + m][i]; return t; });
+    S.charts.atopic = new Chart($('#chAtopic'), {type:'bar', data:{labels:lab, datasets:['g', 'r', 'v'].map(g => ({label:A.names[g], data:ser(g), backgroundColor:A.colors[g],
+        borderColor:'#fff', borderWidth:{top:2}, borderSkipped:'bottom', maxBarThickness:34, stack:'a'}))},
+      options:{responsive:true, maintainAspectRatio:false, interaction:{mode:'index', intersect:false}, plugins:{legend,
+        tooltip:{callbacks:{title:c => { const a = bk.buckets[c[0].dataIndex]; return bk.step === 1 ? dm(a[0]) : rng(a[0], a[1]); }, label:c => ` ${c.dataset.label}: ${c.raw == null ? 'n/a' : N(c.raw)} ${au}`,
+          footer:c => `All articles: ${N(c.reduce((s, x) => s + (x.raw || 0), 0))} ${au}`}}},
+        scales:{x:{stacked:true, grid:{display:false}, ticks:{maxRotation:0, autoSkip:true, maxTicksLimit:10}}, y:{stacked:true, beginAtZero:true, grid:{color:grid}, ticks:{precision:0}}}}});
   }
   // 0. since the call: day by day, bars before the call in gray, early (not final) days lighter
   if (b.since && $('#chSince')){
@@ -1138,12 +1191,13 @@ async function unlock(pw, silent){
 }
 $('#lockform').addEventListener('submit', e => { e.preventDefault(); const pw = $('#pw').value; if (pw.trim()) unlock(pw, false); });
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-act],[data-cmp],[data-period],[data-rank],[data-tm],[data-tmx],[data-tg],[data-lm],[data-tq],[data-sm],[data-wl],[data-mb],[data-mm],[data-wk],[data-kv],[data-bm]');
+  const t = e.target.closest('[data-act],[data-cmp],[data-period],[data-rank],[data-tm],[data-tmx],[data-tg],[data-lm],[data-tq],[data-sm],[data-wl],[data-mb],[data-mm],[data-wk],[data-kv],[data-bm],[data-am]');
   if (!t) return;
   const b = S.data && S.data.brands.find(x => x.id === S.brand);
   if (t.dataset.act === 'lock'){ store.del('lnc_pw'); S.data = null; $('#pw').value = ''; $('#choose').innerHTML = ''; $('#dash').innerHTML = ''; history.replaceState(null, '', location.pathname); route(); return; }
   if (!b) return;
   if (t.dataset.act === 'kwall'){ S.kwall = !S.kwall; renderKw(b); return; }
+  if (t.dataset.act === 'atall'){ S.aall = !S.aall; renderAtopic(b); return; }
   if (t.dataset.act === 'jump'){ const el = document.getElementById(t.dataset.to); if (el) el.scrollIntoView({behavior:'smooth', block:'start'}); return; }
   if (t.dataset.act === 'kxmore'){ S.kn += 25; renderKwx(b); return; }
   if (t.dataset.kv){ S.kv = t.dataset.kv; S.kn = 15; document.querySelectorAll('[data-kv]').forEach(x => x.setAttribute('aria-pressed', x === t)); renderKwx(b); return; }
@@ -1162,6 +1216,7 @@ document.addEventListener('click', e => {
   if (t.dataset.sm) S.sm = t.dataset.sm;
   if (t.dataset.wl) S.wl = t.dataset.wl;
   if (t.dataset.bm) S.bm = t.dataset.bm;
+  if (t.dataset.am) S.am = t.dataset.am;
   if (t.dataset.period) S.kn = 15;
   renderDash(); window.scrollTo(0, y);
 });
