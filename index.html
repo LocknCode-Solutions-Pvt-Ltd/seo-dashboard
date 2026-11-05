@@ -515,7 +515,7 @@ function sinceHtml(b){
       <div class="panel"><h3 class="down">▼ Losing</h3><div class="tw"><table class="wt">${wlHead}<tbody>${wlRows(Lo) || '<tr><td colspan="4" class="muted">None</td></tr>'}</tbody></table></div></div></div>
     <div class="g${cl ? 3 : 2}" style="margin-top:16px">
       <div class="panel"><h3>Views by page type</h3><div class="chartbox donut"><canvas id="chTypes" aria-label="Views by page type since the call"></canvas></div></div>
-      ${cl ? `<div class="panel"><h3>How visitors arrived <span class="hs">Clarity, ${dm(cl.from)} to ${dm(cl.to)}</span></h3><div class="chartbox donut"><canvas id="chSrc" aria-label="Visitor sources"></canvas></div></div>` : ''}
+      ${cl ? `<div class="panel"><h3>Organic visits by search engine <span class="hs">Clarity, ${dm(cl.from)} to ${dm(cl.to)}</span></h3><div class="chartbox donut"><canvas id="chSrc" aria-label="Organic visits by search engine"></canvas></div></div>` : ''}
       <div class="panel"><h3>Articles going live</h3><div class="chartbox donut"><canvas id="chArt" aria-label="Articles live and scheduled per day"></canvas></div></div>
     </div>
     <div style="margin-top:16px">
@@ -694,7 +694,7 @@ function renderDash(){
   const ps = planStats(b);
   $('#dash').innerHTML = topbar(b.id) + `<main class="wrap">
   <div class="head"><div><h1>${esc(b.name)}</h1><div class="sub"><a href="https://${esc(b.domain)}/" target="_blank" rel="noopener">${esc(b.domain)}</a> · ${nowName()}: ${rng(...L.range)}</div></div></div>
-  <nav class="jump" aria-label="Jump to">${[['s-since','Since our call', 1], ['s-over','Overview'], b.split ? ['s-split','Repêchage and VOESH'] : null, b.split && b.split.art ? ['s-atopic','Articles'] : null, ['s-week','Week on week'], ['s-month','Month by month'], ['s-rank','Rankings'], ['s-kx','Keywords'], ['s-plan','New pages'], b.clarity && b.clarity.length ? ['clarSec','Visitors'] : null, ['aiSec','AI searches'], ['linksSec','Backlinks']].filter(Boolean)
+  <nav class="jump" aria-label="Jump to">${[['s-since','Since our call', 1], ['s-over','Overview'], b.split ? ['s-split','Repêchage and VOESH'] : null, b.split && b.split.art ? ['s-atopic','Articles'] : null, ['s-week','Week on week'], ['s-month','Month by month'], ['s-rank','Rankings'], ['s-kx','Keywords'], ['s-plan','New pages'], b.clarity && b.clarity.length ? ['clarSec','Organic visitors'] : null, ['linksSec','Backlinks']].filter(Boolean)
     .map(([id, l, hot]) => `<button type="button" data-act="jump" data-to="${id}"${hot ? ' class="hot"' : ''}>${l}</button>`).join('')}</nav>
   ${sinceHtml(b)}
   <div class="controls" id="s-over" style="margin-top:18px">
@@ -737,7 +737,6 @@ function renderDash(){
     <p class="cardnote" id="atNote"></p></section>` : ''}
 
   ${b.clarity && b.clarity.length ? '<section class="sec" id="clarSec"></section>' : ''}
-  <section class="sec" id="aiSec"></section>
 
   <section class="sec"><div class="sech"><div><h2>Where does the traffic come from?</h2><p id="tgNote"></p></div>
     <div class="tog"><div class="seg" role="group" aria-label="Group by"><button type="button" data-tg="type" aria-pressed="${S.tg === 'type'}">By page type</button><button type="button" data-tg="band" aria-pressed="${S.tg === 'band'}">By position in Google</button></div>
@@ -983,17 +982,17 @@ function renderClarity(b){
   const note = S.period === 'since' ? `Every day of Clarity data so far, ${span}.`
     : nDays < per(b).days ? `Clarity data starts on ${dm(w.first.slice(0, 10))}, so this shows the ${nDays} days there are so far (${span}) rather than the full ${PSHORT[S.period]}.`
     : `${span}${C ? ', against the same number of days before' : ''}.`;
-  el.innerHTML = `<div class="sech"><div><h2>What do visitors do on the site?</h2>
-    <p>From Microsoft Clarity, which records how real visitors use the pages (bots are left out). ${note} Clarity days run from about 12:45 pm to 12:45 pm, so they do not line up exactly with Google's days above.</p></div></div>
+  el.innerHTML = `<div class="sech"><div><h2>What do organic visitors do on the site?</h2>
+    <p>From Microsoft Clarity, which records how visitors use the pages. Organic only: people who arrived from a search engine (Google, Bing or Yahoo). Every other kind of visit and all bots are left out. ${note} Clarity days run from about 12:45 pm to 12:45 pm, so they do not line up exactly with Google's days above.</p></div></div>
     <div class="grid g4">
-      ${card('Visits by real people', A.sessions, C ? C.sessions : null, 'n', `Clarity also filtered out ${N(A.bots)} visits by bots.`)}
+      ${card('Organic visits', A.sessions, C ? C.sessions : null, 'n', `Clarity also filtered out ${N(A.bots)} bot visits from search.`)}
       ${card('How far people scroll', A.scroll, C ? C.scroll : null, 'pct', 'Average share of each page a visitor scrolled through.')}
       ${card('Active time per visit', A.active, C ? C.active : null, 'sec', 'Time spent reading, scrolling or clicking, idle time left out.')}
       ${card('Pages per visit', A.pps, C ? C.pps : null, 'dec', 'How many pages a visitor opens before leaving.')}
     </div>
     <div class="sig">${SIG.map(([k, l, h]) => { const v = A.sig[k] || 0; return `<div class="pill${v ? ' bad' : ' good'}" title="${h}"><b>${N(v)}</b>${l}<small>${h}; ${sh(v, A.sessions)} of visits</small></div>`; }).join('')}</div>
     ${b.clarity.length > 1 ? '<div class="chartbox short"><canvas id="chClarity" aria-label="Visits each day"></canvas></div>' : `<div class="cardnote" style="margin:0 0 14px">Clarity is checked once a day from ${dm(w.to.slice(0, 10))}, so a day by day chart appears here after the next check.</div>`}
-    <div class="split even" style="margin-top:14px;align-items:start"><div class="tw">${tbl('Where visitors came from', A.source, A.sessions)}</div><div class="tw">${tbl('Device', A.device, A.sessions)}</div></div>
+    <div class="split even" style="margin-top:14px;align-items:start"><div class="tw">${tbl('Search engine', A.source, A.sessions)}</div><div class="tw">${tbl('Device', A.device, A.sessions)}</div></div>
     <h3 style="font-size:15px;margin:20px 0 8px">Pages people visited most</h3>
     <div class="tw"><table class="pt"><thead><tr><th>Page</th><th class="n">Visits</th><th class="n">${H('Scrolled', 'Scroll')}</th><th class="n hp">Active time</th><th class="n">${H('Problems', 'Issues')}</th></tr></thead><tbody>${pages.map(g => {
       const pr = [g.qb ? `${g.qb} quick back${g.qb > 1 ? 's' : ''}` : '', g.se ? `${g.se} page error${g.se > 1 ? 's' : ''}` : '', g.fr ? `${g.fr} rage or dead click${g.fr > 1 ? 's' : ''}` : ''].filter(Boolean).join(', ');
@@ -1133,7 +1132,7 @@ function drawCharts(b){
   if (b.clarity && b.clarity.length > 1 && $('#chClarity')){
     const rs = clarWindows(b).cur;
     S.charts.clarity = new Chart($('#chClarity'), {type:'bar', data:{labels:rs.map(r => r.days > 1 ? rng(r.from.slice(0, 10), r.to.slice(0, 10)) : dm(r.to.slice(0, 10))), datasets:[
-        {label:'Visits by real people', data:rs.map(r => r.sessions), backgroundColor:accent, borderRadius:6, maxBarThickness:42}]},
+        {label:'Organic visits', data:rs.map(r => r.sessions), backgroundColor:accent, borderRadius:6, maxBarThickness:42}]},
       options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{title:c => { const r = rs[c[0].dataIndex]; return r.days > 1 ? `${r.days} days to ${dm(r.to.slice(0, 10))}` : `24 hours to ${dm(r.to.slice(0, 10))}, 12:45 pm`; },
         label:c => { const r = rs[c.dataIndex]; return [` ${N(r.sessions)} visits`, ` ${r.scroll == null ? 'n/a' : Math.round(r.scroll) + '%'} scrolled on average`]; }}}},
         scales:{x:{grid:{display:false}, ticks:{maxRotation:0, autoSkip:true, maxTicksLimit:10}}, y:{beginAtZero:true, grid:{color:grid}, ticks:{precision:0}}}}});
